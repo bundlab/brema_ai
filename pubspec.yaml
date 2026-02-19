@@ -1,0 +1,35 @@
+name: brema_ai_app
+description: "A professional AI chat application built on Ubuntu."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  google_generative_ai: ^0.4.7
+  flutter_markdown: ^0.7.7+1
+  http: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+# This section is for Flutter-specific configuration
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/icon.png
+    - .env
+
+# This section is for the Icon Generator
+flutter_launcher_icons:
+  android: true
+  ios: true
+  linux:
+    generate: true
+  image_path: "assets/icon/icon.png"
