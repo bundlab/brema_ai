@@ -1,4 +1,4 @@
-# BremaAI 🤖
+# BremaAI
 A professional AI Chat Application built with Flutter on Ubuntu 24.04.
 
 ## ✨ Features
