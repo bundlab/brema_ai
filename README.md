@@ -1,4 +1,4 @@
-# Brema AI 🤖
+# BremaAI 🤖
 A professional AI Chat Application built with Flutter on Ubuntu 24.04.
 
 ## ✨ Features
@@ -8,7 +8,7 @@ A professional AI Chat Application built with Flutter on Ubuntu 24.04.
 * **Selectable Text**: Easily copy AI responses and code snippets.
 
 ## 🚀 How to Run
-1. Clone the repo: `git clone https://github.com/bundlab/brema_ai_app.git`
+1. Clone the repo: `git clone https://github.com/bundlab/brema_ai.git`
 2. Get dependencies: `flutter pub get`
 3. Run the app: 
    `flutter run -d linux --dart-define=API_KEY=YOUR_KEY_HERE`
