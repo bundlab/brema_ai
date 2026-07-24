@@ -25,6 +25,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/icon.png
+    - assets/images/brema_logo.png
 
 # This section is for the Icon Generator
 flutter_launcher_icons:
