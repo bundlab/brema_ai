@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../models/conversation.dart';
@@ -6,20 +7,30 @@ class Sidebar extends StatelessWidget {
   final bool collapsed;
   final List<Conversation> conversations;
   final String? selectedConversationId;
+  final String searchQuery;
+
   final VoidCallback? onNewChat;
   final VoidCallback? onSettings;
   final VoidCallback? onNavigate;
+
+  final ValueChanged<String>? onSearchChanged;
   final ValueChanged<String>? onSelectConversation;
+  final ValueChanged<Conversation>? onRenameConversation;
+  final ValueChanged<Conversation>? onDeleteConversation;
 
   const Sidebar({
     super.key,
     this.collapsed = false,
     this.conversations = const [],
     this.selectedConversationId,
+    this.searchQuery = '',
     this.onNewChat,
     this.onSettings,
     this.onNavigate,
+    this.onSearchChanged,
     this.onSelectConversation,
+    this.onRenameConversation,
+    this.onDeleteConversation,
   });
 
   static const Color _background = Color(0xFF1B1C1F);
@@ -69,8 +80,10 @@ class Sidebar extends StatelessWidget {
                 ),
               ),
             ),
+
             const Divider(height: 1),
-            if (showLabels)
+
+            if (showLabels) ...[
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 20, 16, 10),
                 child: Align(
@@ -84,46 +97,152 @@ class Sidebar extends StatelessWidget {
                     ),
                   ),
                 ),
-              )
-            else
+              ),
+
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: TextField(
+                  onChanged: onSearchChanged,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Search conversations',
+                    hintStyle: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 13,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: Colors.white54,
+                      size: 20,
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFF292A2E),
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ),
+            ] else
               const SizedBox(height: 12),
+
             Expanded(
               child: conversations.isEmpty
-                  ? (showLabels
-                      ? const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Text(
-                              'Your conversations will appear here.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white54,
-                                fontSize: 12,
-                              ),
-                            ),
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          searchQuery.isNotEmpty
+                              ? 'No matching conversations.'
+                              : 'Your conversations will appear here.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 12,
                           ),
-                        )
-                      : const SizedBox.shrink())
+                        ),
+                      ),
+                    )
                   : ListView.builder(
                       padding: EdgeInsets.zero,
                       itemCount: conversations.length,
                       itemBuilder: (context, index) {
                         final conversation = conversations[index];
 
-                        return _SidebarItem(
-                          icon: Icons.chat_bubble_outline,
-                          label: conversation.title,
-                          collapsed: collapsed,
-                          selected: conversation.id == selectedConversationId,
-                          onTap: () {
-                            onSelectConversation?.call(conversation.id);
-                            onNavigate?.call();
-                          },
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: _SidebarItem(
+                                icon: Icons.chat_bubble_outline,
+                                label: conversation.title,
+                                collapsed: collapsed,
+                                selected: conversation.id ==
+                                    selectedConversationId,
+                                onTap: () {
+                                  onSelectConversation?.call(
+                                    conversation.id,
+                                  );
+                                  onNavigate?.call();
+                                },
+                              ),
+                            ),
+
+                            if (showLabels)
+                              PopupMenuButton<String>(
+                                tooltip: 'Conversation options',
+                                icon: const Icon(
+                                  Icons.more_horiz,
+                                  color: Colors.white54,
+                                  size: 20,
+                                ),
+                                color: const Color(0xFF292A2E),
+                                onSelected: (value) {
+                                  if (value == 'rename') {
+                                    onRenameConversation?.call(
+                                      conversation,
+                                    );
+                                  } else if (value == 'delete') {
+                                    onDeleteConversation?.call(
+                                      conversation,
+                                    );
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                    value: 'rename',
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.edit_outlined,
+                                          size: 18,
+                                          color: Colors.white70,
+                                        ),
+                                        SizedBox(width: 10),
+                                        Text(
+                                          'Rename',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.delete_outline,
+                                          size: 18,
+                                          color: Colors.redAccent,
+                                        ),
+                                        SizedBox(width: 10),
+                                        Text(
+                                          'Delete',
+                                          style: TextStyle(
+                                            color: Colors.redAccent,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
                         );
                       },
                     ),
             ),
+
             const Divider(height: 1),
+
             _SidebarItem(
               icon: Icons.settings,
               label: 'Settings',
@@ -162,7 +281,9 @@ class _SidebarItem extends StatelessWidget {
     return Tooltip(
       message: collapsed ? label : '',
       child: Material(
-        color: selected ? _accent.withValues(alpha: 0.14) : Colors.transparent,
+        color: selected
+            ? _accent.withValues(alpha: 0.14)
+            : Colors.transparent,
         child: InkWell(
           onTap: onTap,
           child: SizedBox(

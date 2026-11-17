@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../models/chat_message.dart';
@@ -16,17 +17,25 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<ScaffoldState> _scaffoldKey =
+      GlobalKey<ScaffoldState>();
 
-  final TextEditingController _controller = TextEditingController();
-  final ScrollController _chatScrollController = ScrollController();
+  final TextEditingController _controller =
+      TextEditingController();
+
+  final ScrollController _chatScrollController =
+      ScrollController();
 
   final ApiService _api = ApiService();
-  final ConversationStorageService _storage = ConversationStorageService();
+
+  final ConversationStorageService _storage =
+      ConversationStorageService();
 
   final List<Conversation> _conversations = [];
 
   String? _selectedConversationId;
+  String _searchQuery = '';
+
   bool _loading = false;
   bool _historyLoading = true;
   bool _sidebarCollapsed = false;
@@ -36,13 +45,7 @@ class _ChatScreenState extends State<ChatScreen> {
   static const double _collapsedSidebarWidth = 72;
 
   List<ChatMessage> get messages {
-    for (final conversation in _conversations) {
-      if (conversation.id == _selectedConversationId) {
-        return conversation.messages;
-      }
-    }
-
-    return const [];
+    return _selectedConversation?.messages ?? const [];
   }
 
   Conversation? get _selectedConversation {
@@ -53,6 +56,25 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     return null;
+  }
+
+  List<Conversation> get _filteredConversations {
+    final query = _searchQuery.trim().toLowerCase();
+
+    if (query.isEmpty) {
+      return _conversations;
+    }
+
+    return _conversations.where((conversation) {
+      final titleMatches =
+          conversation.title.toLowerCase().contains(query);
+
+      final messageMatches = conversation.messages.any(
+        (message) => message.message.toLowerCase().contains(query),
+      );
+
+      return titleMatches || messageMatches;
+    }).toList();
   }
 
   @override
@@ -72,7 +94,8 @@ class _ChatScreenState extends State<ChatScreen> {
           ..clear()
           ..addAll(saved);
 
-        _selectedConversationId = saved.isNotEmpty ? saved.first.id : null;
+        _selectedConversationId =
+            saved.isNotEmpty ? saved.first.id : null;
 
         _historyLoading = false;
       });
@@ -112,7 +135,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   String _titleFromMessage(String message) {
-    final singleLine = message.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final singleLine =
+        message.replaceAll(RegExp(r'\s+'), ' ').trim();
 
     if (singleLine.length <= 32) {
       return singleLine.isEmpty ? 'New Chat' : singleLine;
@@ -130,7 +154,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _controller.clear();
 
-    // Create or retrieve the conversation before setState.
     final conversation = _selectedConversation ??
         Conversation(
           id: _createConversationId(),
@@ -140,7 +163,9 @@ class _ChatScreenState extends State<ChatScreen> {
         );
 
     setState(() {
-      if (!_conversations.any((item) => item.id == conversation.id)) {
+      if (!_conversations.any(
+        (item) => item.id == conversation.id,
+      )) {
         _conversations.insert(0, conversation);
       }
 
@@ -154,6 +179,7 @@ class _ChatScreenState extends State<ChatScreen> {
       );
 
       conversation.updatedAt = DateTime.now();
+
       _sortConversations();
       _loading = true;
     });
@@ -232,13 +258,16 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _newChat() {
     if (_loading || _historyLoading) {
-      _showMessage('Please wait until the current operation finishes.');
+      _showMessage(
+        'Please wait until the current operation finishes.',
+      );
       return;
     }
 
     setState(() {
       _selectedConversationId = null;
       _controller.clear();
+      _searchQuery = '';
     });
 
     _closeDrawer();
@@ -246,7 +275,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _selectConversation(String id) {
     if (_loading) {
-      _showMessage('Please wait for the current response to finish.');
+      _showMessage(
+        'Please wait for the current response to finish.',
+      );
       return;
     }
 
@@ -264,6 +295,154 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToLatestMessage();
   }
 
+  void _searchConversations(String query) {
+    setState(() {
+      _searchQuery = query;
+    });
+  }
+
+  Future<void> _renameConversation(
+    Conversation conversation,
+  ) async {
+    if (_loading) {
+      _showMessage(
+        'Please wait for the current response to finish.',
+      );
+      return;
+    }
+
+    final controller = TextEditingController(
+      text: conversation.title,
+    );
+
+    try {
+      final newTitle = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Rename conversation'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              maxLength: 60,
+              decoration: const InputDecoration(
+                labelText: 'Conversation name',
+                hintText: 'Enter a new name',
+              ),
+              onSubmitted: (value) {
+                Navigator.pop(dialogContext, value.trim());
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(
+                    dialogContext,
+                    controller.text.trim(),
+                  );
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (!mounted || newTitle == null) return;
+
+      if (newTitle.isEmpty) {
+        _showMessage('Conversation name cannot be empty.');
+        return;
+      }
+
+      setState(() {
+        conversation.title = newTitle;
+        conversation.updatedAt = DateTime.now();
+        _sortConversations();
+      });
+
+      await _saveHistory();
+
+      if (mounted) {
+        _showMessage('Conversation renamed successfully.');
+      }
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  Future<void> _deleteConversation(
+    Conversation conversation,
+  ) async {
+    if (_loading) {
+      _showMessage(
+        'Please wait for the current response to finish.',
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete conversation?'),
+          content: Text(
+            'Are you sure you want to delete '
+            '"${conversation.title}"? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || confirmed != true) return;
+
+    setState(() {
+      final wasSelected =
+          _selectedConversationId == conversation.id;
+
+      _conversations.removeWhere(
+        (item) => item.id == conversation.id,
+      );
+
+      if (wasSelected) {
+        _selectedConversationId =
+            _conversations.isNotEmpty
+                ? _conversations.first.id
+                : null;
+      }
+    });
+
+    await _saveHistory();
+
+    if (mounted) {
+      _showMessage('Conversation deleted.');
+    }
+  }
+
   void _closeDrawer() {
     _scaffoldKey.currentState?.closeDrawer();
   }
@@ -271,6 +450,22 @@ class _ChatScreenState extends State<ChatScreen> {
   void _openSettings() {
     _closeDrawer();
     _showMessage('Settings are coming soon.');
+  }
+
+  Widget _buildSidebar({required bool collapsed}) {
+    return Sidebar(
+      collapsed: collapsed,
+      conversations: _filteredConversations,
+      selectedConversationId: _selectedConversationId,
+      searchQuery: _searchQuery,
+      onNewChat: _newChat,
+      onSettings: _openSettings,
+      onNavigate: _closeDrawer,
+      onSearchChanged: _searchConversations,
+      onSelectConversation: _selectConversation,
+      onRenameConversation: _renameConversation,
+      onDeleteConversation: _deleteConversation,
+    );
   }
 
   @override
@@ -284,24 +479,15 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < _mobileBreakpoint;
+        final isMobile =
+            constraints.maxWidth < _mobileBreakpoint;
 
         return Scaffold(
           key: _scaffoldKey,
           drawer: isMobile
               ? Drawer(
                   width: _expandedSidebarWidth,
-                  child: SafeArea(
-                    child: Sidebar(
-                      collapsed: false,
-                      conversations: _conversations,
-                      selectedConversationId: _selectedConversationId,
-                      onNewChat: _newChat,
-                      onSettings: _openSettings,
-                      onNavigate: _closeDrawer,
-                      onSelectConversation: _selectConversation,
-                    ),
-                  ),
+                  child: _buildSidebar(collapsed: false),
                 )
               : null,
           appBar: AppBar(
@@ -341,13 +527,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   width: _sidebarCollapsed
                       ? _collapsedSidebarWidth
                       : _expandedSidebarWidth,
-                  child: Sidebar(
+                  child: _buildSidebar(
                     collapsed: _sidebarCollapsed,
-                    conversations: _conversations,
-                    selectedConversationId: _selectedConversationId,
-                    onNewChat: _newChat,
-                    onSettings: _openSettings,
-                    onSelectConversation: _selectConversation,
                   ),
                 ),
               Expanded(
@@ -360,7 +541,8 @@ class _ChatScreenState extends State<ChatScreen> {
                             )
                           : ChatArea(
                               messages: messages,
-                              scrollController: _chatScrollController,
+                              scrollController:
+                                  _chatScrollController,
                               isLoading: _loading,
                             ),
                     ),
