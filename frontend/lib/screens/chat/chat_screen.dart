@@ -161,6 +161,11 @@ class _ChatScreenState extends State<ChatScreen> {
           messages: [],
           updatedAt: DateTime.now(),
         );
+        
+    // Preserve the previous messages before adding the new prompt.
+    final history = List<ChatMessage>.from(
+      conversation.messages,
+    );
 
     setState(() {
       if (!_conversations.any(
@@ -188,7 +193,10 @@ class _ChatScreenState extends State<ChatScreen> {
     await _saveHistory();
 
     try {
-      final response = await _api.sendMessage(text);
+      final response = await _api.sendMessage(
+        text,
+        history: history,
+      );
 
       if (!mounted) return;
 

@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter
 
 from app.schemas.chat import (
@@ -19,9 +20,14 @@ router_api = APIRouter()
 async def chat(
     request: ChatRequest,
 ):
+    history = [
+        message.model_dump()
+        for message in request.history
+    ]
 
     answer, provider = await router.chat(
-        request.message
+        request.message,
+        history,
     )
 
     return ChatResponse(
@@ -29,3 +35,4 @@ async def chat(
         provider=provider,
         response=answer,
     )
+

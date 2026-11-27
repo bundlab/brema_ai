@@ -6,7 +6,11 @@ from app.core.config import OLLAMA_URL, OLLAMA_MODEL
 
 class OllamaService:
 
-    async def generate(self, prompt: str) -> str:
+    async def generate(
+        self,
+        prompt: str,
+        history: list[dict] | None = None,
+    ) -> str:
 
         timeout = httpx.Timeout(
             connect=10.0,
@@ -15,15 +19,27 @@ class OllamaService:
             pool=10.0,
         )
 
+        # Keep only the latest 20 previous messages.
+        previous_messages = (history or [])[-20:]
+
+        # Construct the complete conversation.
+        messages = [
+            *previous_messages,
+            {
+                "role": "user",
+                "content": prompt,
+            },
+        ]
+
         async with httpx.AsyncClient(
             timeout=timeout
         ) as client:
 
             response = await client.post(
-                f"{OLLAMA_URL}/api/generate",
+                f"{OLLAMA_URL}/api/chat",
                 json={
                     "model": OLLAMA_MODEL,
-                    "prompt": prompt,
+                    "messages": messages,
                     "stream": False,
                     "keep_alive": "10m",
                 },
@@ -33,7 +49,7 @@ class OllamaService:
 
             data = response.json()
 
-            return data["response"]
+            return data["message"]["content"]
 
 
 ollama = OllamaService()

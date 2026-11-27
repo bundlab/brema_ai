@@ -1,3 +1,4 @@
+
 from app.core.config import DEFAULT_PROVIDER
 
 from app.services.mock_service import mock
@@ -7,14 +8,23 @@ from app.services.gemini_service import gemini
 
 class AIRouter:
 
-    async def chat(self, prompt: str):
+    async def chat(
+        self,
+        prompt: str,
+        history: list[dict] | None = None,
+    ):
+
+        history = history or []
 
         if DEFAULT_PROVIDER == "mock":
             answer = await mock.generate(prompt)
             return answer, "mock"
 
         elif DEFAULT_PROVIDER == "ollama":
-            answer = await ollama.generate(prompt)
+            answer = await ollama.generate(
+                prompt,
+                history,
+            )
             return answer, "ollama"
 
         elif DEFAULT_PROVIDER == "gemini":
@@ -27,3 +37,4 @@ class AIRouter:
 
 
 router = AIRouter()
+

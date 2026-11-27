@@ -1,11 +1,16 @@
+
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
+import '../models/chat_message.dart';
 
 class ApiService {
-  Future<String> sendMessage(String message) async {
+  Future<String> sendMessage(
+    String message, {
+    List<ChatMessage> history = const [],
+  }) async {
     final uri = Uri.parse(
       ApiConfig.baseUrl + ApiConfig.chatEndpoint,
     );
@@ -17,6 +22,12 @@ class ApiService {
       },
       body: jsonEncode({
         "message": message,
+        "history": history.map((item) {
+          return {
+            "role": item.isUser ? "user" : "assistant",
+            "content": item.message,
+          };
+        }).toList(),
       }),
     );
 
@@ -35,3 +46,4 @@ class ApiService {
     throw Exception("Backend returned an error.");
   }
 }
+
